@@ -420,13 +420,6 @@
                     "geosite-cn"
                 ],
                 "outbound": "直连"
-            },
-            {
-                "domain": [
-                    "cn.bing.com",
-                    "bing.com"
-                ],
-                "outbound": "直连"
             }
         ],
         "rule_set": [
