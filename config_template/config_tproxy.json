@@ -423,7 +423,8 @@
             },
             {
                 "domain": [
-                    "cn.bing.com"
+                    "cn.bing.com",
+                    "bing.com"
                 ],
                 "outbound": "直连"
             }
