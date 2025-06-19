@@ -350,8 +350,7 @@
                     "clash.razord.top",
                     "yacd.metacubex.one",
                     "yacd.haishan.me",
-                    "d.metacubex.one",
-                    "cn.bing.com"
+                    "d.metacubex.one"
                 ],
                 "outbound": "直连"
             },
@@ -419,6 +418,12 @@
                 "rule_set": [
                     "geoip-cn",
                     "geosite-cn"
+                ],
+                "outbound": "直连"
+            },
+            {
+                "domain": [
+                    "cn.bing.com"
                 ],
                 "outbound": "直连"
             }
