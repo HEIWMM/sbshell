@@ -140,13 +140,13 @@
             "tag": "Microsoft",
             "type": "selector",
             "outbounds": [
+                "直连",
                 "节点选择",
                 "自动选择",
                 "香港自动",
                 "香港节点",
                 "日本节点",
-                "美国节点",
-                "直连"
+                "美国节点"
             ]
         },
         {
@@ -339,7 +339,7 @@
             },
             {
                 "clash_mode": "direct",
-                "outbound": "直连"
+                "outbound": ""
             },
             {
                 "clash_mode": "global",
@@ -350,7 +350,8 @@
                     "clash.razord.top",
                     "yacd.metacubex.one",
                     "yacd.haishan.me",
-                    "d.metacubex.one"
+                    "d.metacubex.one",
+                    "cn.bing.com"
                 ],
                 "outbound": "直连"
             },
