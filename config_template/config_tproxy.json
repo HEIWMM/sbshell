@@ -343,7 +343,7 @@
             },
             {
                 "clash_mode": "direct",
-                "outbound": ""
+                "outbound": "直连"
             },
             {
                 "clash_mode": "global",
