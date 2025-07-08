@@ -141,32 +141,6 @@
             ]
         },
         {
-            "tag": "Microsoft",
-            "type": "selector",
-            "outbounds": [
-                "直连",
-                "节点选择",
-                "自动选择",
-                "香港自动",
-                "香港节点",
-                "日本节点",
-                "美国节点"
-            ]
-        },
-        {
-            "tag": "OneDrive",
-            "type": "selector",
-            "outbounds": [
-                "节点选择",
-                "自动选择",
-                "香港自动",
-                "香港节点",
-                "日本节点",
-                "美国节点",
-                "手动切换"
-            ]
-        },
-        {
             "tag": "TikTok",
             "type": "selector",
             "outbounds": [
@@ -351,7 +325,8 @@
             },
             {
                 "domain_regex": [
-                    "\\.bing\\."
+                    "\\.bing\\.",
+                    "\\.microsoft\\."
                 ],
                 "outbound": "直连"
             },
@@ -415,14 +390,6 @@
                     "geoip-apple"
                 ],
                 "outbound": "Apple"
-            },
-            {
-                "rule_set": "geosite-onedrive",
-                "outbound": "OneDrive"
-            },
-            {
-                "rule_set": "geosite-microsoft",
-                "outbound": "🪟 Microsoft"
             },
             {
                 "rule_set": "geosite-geolocation-!cn",
@@ -498,20 +465,6 @@
                 "type": "remote",
                 "format": "binary",
                 "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/apple.srs",
-                "download_detour": "直连"
-            },
-            {
-                "tag": "geosite-microsoft",
-                "type": "remote",
-                "format": "binary",
-                "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/microsoft.srs",
-                "download_detour": "直连"
-            },
-            {
-                "tag": "geosite-onedrive",
-                "type": "remote",
-                "format": "binary",
-                "url": "https://gh-proxy.com/https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/onedrive.srs",
                 "download_detour": "直连"
             },
             {
