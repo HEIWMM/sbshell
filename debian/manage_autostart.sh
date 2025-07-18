@@ -10,8 +10,11 @@ echo "请选择操作(1: 启用自启动, 2: 禁用自启动）"
 read -rp "(1/2): " autostart_choice
 
 apply_firewall() {
+    echo "自启动开始应用防火墙规则..."
     MODE=$(grep -oP '(?<=^MODE=).*' /etc/sing-box/mode.conf)
     if [ "$MODE" = "TProxy" ]; then
+        echo "先清除原有防火墙规则..."
+        bash /etc/sing-box/scripts/clean_nft.sh  # 修改这一行
         echo "应用 TProxy 模式下的防火墙规则..."
         bash /etc/sing-box/scripts/configure_tproxy.sh
     elif [ "$MODE" = "TUN" ]; then
