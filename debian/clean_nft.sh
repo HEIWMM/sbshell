@@ -1,65 +1,104 @@
-#!/bin/bash
+echo "开始清除防火墙规则..."
+nft flush ruleset
 
-# 定义颜色
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # 无颜色
+# 写入Docker相关的防火墙规则
+cat > /tmp/docker_rules.nft <<EOF
+# Warning: table ip nat is managed by iptables-nft, do not touch! 
+table ip nat { 
+        chain DOCKER { 
+                iifname "docker0" counter packets 0 bytes 0 return 
+                iifname "br-8bad6f7ab7c0" counter packets 0 bytes 0 return 
+                iifname != "docker0" tcp dport 9000 counter packets 0 bytes 0 dnat to 172.17.0.2:9000 
+        } 
 
-# 配置参数（与 configure_tproxy.sh 保持一致）
-PROXY_FWMARK=1
-PROXY_ROUTE_TABLE=100
-INTERFACE=$(ip route show default | awk '/default/ {print $5; exit}')
+        chain POSTROUTING { 
+                type nat hook postrouting priority srcnat; policy accept; 
+                oifname != "docker0" ip saddr 172.17.0.0/16 counter packets 0 bytes 0 masquerade 
+                oifname != "br-8bad6f7ab7c0" ip saddr 172.18.0.0/16 counter packets 0 bytes 0 masquerade 
+                ip saddr 172.17.0.2 ip daddr 172.17.0.2 tcp dport 9000 counter packets 0 bytes 0 masquerade 
+        } 
 
-# 清理 sing-box 相关防火墙规则
-echo -e "${CYAN}清理 sing-box 相关防火墙规则...${NC}"
+        chain PREROUTING { 
+                type nat hook prerouting priority dstnat; policy accept; 
+                fib daddr type local counter packets 5 bytes 354 jump DOCKER 
+        } 
 
-# 1. 清理 nftables 规则
-if nft list table inet sing-box &>/dev/null; then
-    echo -e "${CYAN}删除 sing-box 防火墙表...${NC}"
-    nft delete table inet sing-box
-    echo -e "${GREEN}sing-box 防火墙表已删除${NC}"
-else
-    echo -e "${CYAN}未发现 sing-box 防火墙表${NC}"
-fi
+        chain OUTPUT { 
+                type nat hook output priority -100; policy accept; 
+                ip daddr != 127.0.0.0/8 fib daddr type local counter packets 0 bytes 0 jump DOCKER 
+        } 
+} 
+# Warning: table ip filter is managed by iptables-nft, do not touch! 
+table ip filter { 
+        chain DOCKER { 
+                iifname != "docker0" oifname "docker0" ip daddr 172.17.0.2 tcp dport 9000 counter packets 0 bytes 0 accept 
+        } 
 
-# 2. 清理 IP 规则
-echo -e "${CYAN}清理 IP 路由规则...${NC}"
-if ip rule show | grep -q "fwmark 0x$PROXY_FWMARK lookup $PROXY_ROUTE_TABLE"; then
-    ip rule del fwmark $PROXY_FWMARK lookup $PROXY_ROUTE_TABLE 2>/dev/null
-    echo -e "${GREEN}IP 路由规则已删除${NC}"
-else
-    echo -e "${CYAN}未发现 IP 路由规则${NC}"
-fi
+        chain DOCKER-ISOLATION-STAGE-1 { 
+                iifname "docker0" oifname != "docker0" counter packets 0 bytes 0 jump DOCKER-ISOLATION-STAGE-2 
+                iifname "br-8bad6f7ab7c0" oifname != "br-8bad6f7ab7c0" counter packets 0 bytes 0 jump DOCKER-ISOLATION-STAGE-2 
+                counter packets 0 bytes 0 return 
+        } 
 
-# 3. 清理路由表
-echo -e "${CYAN}清理路由表...${NC}"
-if ip route show table $PROXY_ROUTE_TABLE 2>/dev/null | grep -q "local default"; then
-    ip route del local default dev "${INTERFACE}" table $PROXY_ROUTE_TABLE 2>/dev/null
-    echo -e "${GREEN}路由表已清理${NC}"
-else
-    echo -e "${CYAN}未发现需要清理的路由表${NC}"
-fi
+        chain DOCKER-ISOLATION-STAGE-2 { 
+                oifname "docker0" counter packets 0 bytes 0 drop 
+                oifname "br-8bad6f7ab7c0" counter packets 0 bytes 0 drop 
+                counter packets 0 bytes 0 return 
+        } 
 
-# 4. 检查并删除可能的其他 sing-box 相关链
-if nft list chains 2>/dev/null | grep -q "sing-box"; then
-    echo -e "${CYAN}发现其他 sing-box 相关链，正在清理...${NC}"
-    # 删除所有包含 sing-box 的链
-    nft list chains 2>/dev/null | grep "sing-box" | while read -r line; do
-        table=$(echo "$line" | awk '{print $3}')
-        chain=$(echo "$line" | awk '{print $4}')
-        if [ -n "$table" ] && [ -n "$chain" ]; then
-            nft delete chain "$table" "$chain" 2>/dev/null
-        fi
-    done
-    echo -e "${GREEN}其他 sing-box 相关链已清理${NC}"
-fi
+        chain FORWARD { 
+                type filter hook forward priority filter; policy accept; 
+                counter packets 0 bytes 0 jump DOCKER-USER 
+                counter packets 0 bytes 0 jump DOCKER-ISOLATION-STAGE-1 
+                oifname "docker0" ct state related,established counter packets 0 bytes 0 accept 
+                oifname "docker0" counter packets 0 bytes 0 jump DOCKER 
+                iifname "docker0" oifname != "docker0" counter packets 0 bytes 0 accept 
+                iifname "docker0" oifname "docker0" counter packets 0 bytes 0 accept 
+                oifname "br-8bad6f7ab7c0" ct state related,established counter packets 0 bytes 0 accept 
+                oifname "br-8bad6f7ab7c0" counter packets 0 bytes 0 jump DOCKER 
+                iifname "br-8bad6f7ab7c0" oifname != "br-8bad6f7ab7c0" counter packets 0 bytes 0 accept 
+                iifname "br-8bad6f7ab7c0" oifname "br-8bad6f7ab7c0" counter packets 0 bytes 0 accept 
+        } 
 
-# 5. 清理配置文件（可选，保留配置文件以备后用）
-# if [ -f "/etc/sing-box/nft/nftables.conf" ]; then
-#     echo -e "${CYAN}删除 sing-box nftables 配置文件...${NC}"
-#     rm -f "/etc/sing-box/nft/nftables.conf"
-#     echo -e "${GREEN}配置文件已删除${NC}"
-# fi
+        chain DOCKER-USER { 
+                counter packets 0 bytes 0 return 
+        } 
+} 
+table ip6 nat { 
+        chain DOCKER { 
+        } 
+} 
+table ip6 filter { 
+        chain DOCKER { 
+        } 
 
-echo -e "${GREEN}sing-box 所有防火墙和路由规则清理完毕${NC}"
+        chain DOCKER-ISOLATION-STAGE-1 { 
+                iifname "docker0" oifname != "docker0" counter packets 0 bytes 0 jump DOCKER-ISOLATION-STAGE-2 
+                iifname "br-8bad6f7ab7c0" oifname != "br-8bad6f7ab7c0" counter packets 0 bytes 0 jump DOCKER-ISOLATION-STAGE-2 
+                counter packets 0 bytes 0 return 
+        } 
+
+        chain DOCKER-ISOLATION-STAGE-2 { 
+                oifname "docker0" counter packets 0 bytes 0 drop 
+                oifname "br-8bad6f7ab7c0" counter packets 0 bytes 0 drop 
+                counter packets 0 bytes 0 return 
+        } 
+
+        chain FORWARD { 
+                type filter hook forward priority filter; policy drop; 
+                counter packets 0 bytes 0 jump DOCKER-USER 
+        } 
+
+        chain DOCKER-USER { 
+                counter packets 0 bytes 0 return 
+        } 
+}
+EOF
+
+# 应用Docker规则
+nft -f /tmp/docker_rules.nft
+
+# 清理临时文件
+rm -f /tmp/docker_rules.nft
+
+echo "sing-box 服务已停止,防火墙规则已清理并重新应用了Docker规则."
