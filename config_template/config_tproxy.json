@@ -326,7 +326,7 @@
             {
                 "domain_regex": [
                     "\\.bing\\.",
-                    "\\.microsoft\\."
+                    "microsoft"
                 ],
                 "outbound": "直连"
             },
