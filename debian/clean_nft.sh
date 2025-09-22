@@ -1,4 +1,3 @@
-echo "开始清除防火墙规则..."
 nft flush ruleset
 
 # 写入Docker相关的防火墙规则
